@@ -557,8 +557,6 @@ impl PacketHeader {
 
 #[cfg(test)]
 mod tests {
-    use crate::Indicators;
-
     #[test]
     fn packet_header() {
         use crate::prelude::*;
