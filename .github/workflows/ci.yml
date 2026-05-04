@@ -34,6 +34,11 @@ jobs:
           sudo add-apt-repository ppa:wireshark-dev/stable -y
           sudo apt-get update
 
+          if ! apt-cache policy tshark | grep -q 'ppa.launchpadcontent.net'; then
+            echo "::error::Wireshark PPA is not available — tshark would come from the default Ubuntu repo"
+            exit 1
+          fi
+
           # Pre-seed the Wireshark prompt to be non-interactive
           # Set to 'true' if you want non-root users to capture, 'false' otherwise
           echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
