@@ -26,7 +26,7 @@ pub fn parse_vita49(packet_data: &[u8]) -> MySignalData {
             PacketType::SignalData => {
                 println!(
                     "[RUST] Parsed signal data packet with a {} byte payload",
-                    &packet.payload().signal_data().unwrap().payload_size_bytes()
+                    packet.payload().signal_data().unwrap().payload_size_bytes()
                 );
                 MySignalData {
                     stream_id: packet.stream_id().unwrap(),

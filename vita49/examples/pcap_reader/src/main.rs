@@ -43,16 +43,16 @@ fn main() {
                             println!(
                                 "Signal data packet with stream ID 0x{:X} and a payload of length {}",
                                 &packet.stream_id().unwrap(),
-                                &packet.payload().signal_data().unwrap().payload_size_bytes()
+                                packet.payload().signal_data().unwrap().payload_size_bytes()
                             );
                         }
                         // If it's a context or command packet, print the fields (using the pre-
                         // implemented Display trait)
                         PacketType::Context => {
-                            println!("Context packet:\n{}", &packet.payload().context().unwrap());
+                            println!("Context packet:\n{}", packet.payload().context().unwrap());
                         }
                         PacketType::Command => {
-                            println!("Command packet:\n{}", &packet.payload().command().unwrap());
+                            println!("Command packet:\n{}", packet.payload().command().unwrap());
                         }
                         // Other packet types are not covered in this example
                         _ => unimplemented!(),
