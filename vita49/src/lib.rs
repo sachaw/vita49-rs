@@ -84,6 +84,7 @@ pub mod prelude {
     pub use crate::packet_header::*;
     pub use crate::payload::Payload;
     pub use crate::signal_data::SignalData;
+    pub use crate::trailer::Trailer;
     pub use crate::vrt::Vrt;
     pub use deku::writer::Writer;
     pub use deku::{DekuContainerRead, DekuContainerWrite, DekuReader, DekuWriter};

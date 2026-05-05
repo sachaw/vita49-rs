@@ -464,9 +464,17 @@ impl PacketHeader {
 
     /// Returns true if a trailer is included, false if not.
     pub fn trailer_included(&self) -> bool {
-        match &self.indicators() {
-            Indicators::SignalData(i) => i.trailer_included,
-            _ => false,
+        matches!(self.indicators(), Indicators::SignalData(i) if i.trailer_included)
+    }
+
+    /// Sets the state of the trailer_included flag.
+    ///
+    /// When `true`, it is expected [`Vrt`][crate::Vrt] will have an attached
+    /// [`Trailer`] value.
+    pub(crate) fn set_trailer_included(&mut self, included: bool) {
+        if let Indicators::SignalData(mut si) = self.indicators() {
+            si.trailer_included = included;
+            self.set_indicators(Indicators::SignalData(si));
         }
     }
 
@@ -557,6 +565,7 @@ impl PacketHeader {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
     fn packet_header() {
         use crate::prelude::*;

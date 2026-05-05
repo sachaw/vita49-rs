@@ -421,6 +421,36 @@ impl Vrt {
         self.trailer.as_mut()
     }
 
+    /// Adds (or removes) a packet trailer.
+    ///
+    /// # Example
+    /// ```
+    /// # use vita49::prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut packet = Vrt::new_signal_data_packet();
+    /// let mut trailer = Trailer::default();
+    /// trailer.set_agc_indicator(Some(true));
+    /// packet.set_trailer(Some(trailer));
+    /// assert!(packet.header().trailer_included());
+    /// assert!(packet.trailer().is_some());
+    /// assert!(packet.trailer().and_then(|t| t.agc_indicator()).is_some_and(|agc| agc));
+    /// packet.set_trailer(None);
+    /// assert!(!packet.header().trailer_included());
+    /// assert!(packet.trailer().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_trailer(&mut self, trailer: Option<Trailer>) -> Result<(), VitaError> {
+        match &self.payload {
+            Payload::SignalData(_) => {
+                self.trailer = trailer;
+                self.header.set_trailer_included(self.trailer.is_some());
+                Ok(())
+            }
+            _ => Err(VitaError::SignalDataOnly),
+        }
+    }
+
     /// Get a read-only slice of the packet payload.
     ///
     /// # Errors
@@ -531,5 +561,31 @@ impl Vrt {
         packet_size_words += self.payload.size_words();
 
         self.header.set_packet_size(packet_size_words);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn trailer_header_bit_toggle() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_signal_data_packet();
+
+        packet.set_trailer(Some(Trailer::default())).unwrap();
+        assert!(packet.header().trailer_included());
+
+        packet.set_trailer(None).unwrap();
+        assert!(!packet.header().trailer_included());
+    }
+
+    #[test]
+    fn set_trailer_errors_on_non_signal_data() {
+        use crate::prelude::*;
+        let mut packet = Vrt::new_context_packet();
+        assert!(matches!(
+            packet.set_trailer(Some(Trailer::default())),
+            Err(VitaError::SignalDataOnly)
+        ));
     }
 }
