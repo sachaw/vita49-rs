@@ -10,6 +10,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-12
+
+### Added
+
+- Exposed mutable `Trailer` API with field setters and exports
+- Added indicator bit toggle API
+
+### Changed
+
+- Made `SampleFrameIndicator` public
+- Improved some docs and tests
+
 ## [1.0.0] - 2026-04-13
 
 ### Added
@@ -100,9 +112,13 @@ change accordingly.
 - Initial crate release.
 - Basic documentation, test, and examples.
 
+[1.1.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.1.0
+[1.0.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/1.0.0
+[0.1.0]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.1.0
 [0.0.6]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.0.6
 [0.0.5]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.0.5
 [0.0.4]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.0.4
 [0.0.3]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.0.3
 [0.0.2]: https://github.com/voyager-tech-inc/vita49-rs/releases/tag/0.0.2
 [0.0.1]: Unreleased
+
