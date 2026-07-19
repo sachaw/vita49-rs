@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public construction API for `FormattedGps` (`Default` plus getters/setters for the
   Manufacturer OUI, TSI/TSF, position-fix timestamps, and radix-encoded geolocation values)
 
+### Fixed
+- `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the
+  stage-2 half-word
+
 ## [1.1.0] - 2026-05-12
 
 ### Added
