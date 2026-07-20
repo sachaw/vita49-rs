@@ -423,4 +423,18 @@ mod robustness {
         // Must return (Err or Ok) without panicking.
         let _ = Vrt::try_from(buf.as_ref());
     }
+
+    #[test]
+    fn ambiguous_ack_cam_is_rejected() {
+        // Command packet flagged as an acknowledge (header bit 26) whose CAM selects
+        // none of AckV/AckX/AckS (Rule 8.4.1.1-2 requires exactly one). Previously
+        // the payload discriminator panicked.
+        let buf: &[u8] = &[
+            0x64, 0x00, 0x00, 0x04, // command, ack bit set, packet_size = 4
+            0x00, 0x00, 0x00, 0x00, // stream id
+            0x00, 0x00, 0x00, 0x00, // CAM = 0 (none of V/X/S)
+            0x00, 0x00, 0x00, 0x00, // message id
+        ];
+        assert!(Vrt::try_from(buf).is_err());
+    }
 }

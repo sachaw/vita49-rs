@@ -22,6 +22,14 @@ use deku::prelude::*;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Command {
     /// Control acknowledgement mode.
+    ///
+    /// For an acknowledge packet, Rule 8.4.1.1-2 requires the CAM to select
+    /// exactly one of AckV/AckX/AckS. Reject a word that selects none or several
+    /// at parse (a clean `DekuError`) rather than panicking in the payload
+    /// discriminator (`CommandPayload::derive_type`).
+    #[deku(
+        assert = "!packet_header.is_ack_packet().unwrap_or(false) || (cam.validation() as u8 + cam.execution() as u8 + cam.state() as u8 == 1)"
+    )]
     cam: ControlAckMode,
     /// Message ID.
     message_id: u32,
