@@ -17,6 +17,10 @@ use crate::VitaError;
 #[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PacketHeader {
+    // Packet-type nibble (bits 15:12) — Table 5.1.1-1 defines only 0x0..=0x7;
+    // 0x8..=0xF are reserved. Reject them at parse so `packet_type()` (and the
+    // payload dispatch keyed off it) can't be handed an undefined value.
+    #[deku(assert = "((*hword_1 >> 12) & 0xF) <= 0x7")]
     hword_1: u16,
     packet_size: u16,
 }
@@ -479,23 +483,28 @@ impl PacketHeader {
     }
 
     /// Returns the payload size in 32-bit words.
+    ///
+    /// Saturating throughout: a malformed `packet_size` smaller than the prologue
+    /// it declares present yields 0 rather than underflowing to a huge value (which
+    /// would drive an out-of-bounds payload allocation before the size-consistency
+    /// check rejects the packet).
     pub fn payload_size_words(&self) -> usize {
         // Start with packet size minus 32 bits for the packet header
-        let mut ret = self.packet_size as usize - 1;
+        let mut ret = (self.packet_size as usize).saturating_sub(1);
         if self.stream_id_included() {
-            ret -= 1;
+            ret = ret.saturating_sub(1);
         }
         if self.class_id_included() {
-            ret -= 2;
+            ret = ret.saturating_sub(2);
         }
         if self.integer_timestamp_included() {
-            ret -= 1;
+            ret = ret.saturating_sub(1);
         }
         if self.fractional_timestamp_included() {
-            ret -= 2;
+            ret = ret.saturating_sub(2);
         }
         if self.trailer_included() {
-            ret -= 1;
+            ret = ret.saturating_sub(1);
         }
         ret
     }

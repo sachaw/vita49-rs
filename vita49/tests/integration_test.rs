@@ -382,3 +382,45 @@ fn serde_json() {
     let packet: Vrt = serde_json5::from_str(json).unwrap();
     println!("{}", serde_json::to_string_pretty(&packet).unwrap())
 }
+
+/// Parsing untrusted bytes must never panic or attempt an unbounded allocation —
+/// malformed input has to surface as a `DekuError`. Each case below panicked (or,
+/// for the GPS ASCII case, reserved gigabytes) before the parser-hardening fixes.
+mod robustness {
+    use super::*;
+
+    #[test]
+    fn reserved_packet_type_is_rejected() {
+        // Type nibble 0x8 is reserved (Table 5.1.1-1 defines only 0x0..=0x7).
+        // Previously `packet_type()` unwrapped a failed `TryFrom` during dispatch.
+        for first in [0x80u8, 0x90, 0xF0] {
+            let buf = [first, 0x00, 0x00, 0x00];
+            assert!(Vrt::try_from(buf.as_ref()).is_err(), "type {first:#x}");
+        }
+    }
+
+    #[test]
+    fn oversized_gps_ascii_word_count_is_rejected() {
+        // Context packet asserting a GPS ASCII field whose word count is
+        // 0xFFFF_FFFF. Previously deku reserved `count * 4` bytes (~17 GB, and a
+        // `usize` overflow on 32-bit targets) before hitting end-of-input.
+        let buf: &[u8] = &[
+            0x40, 0x00, 0x00, 0x05, // header: context, packet_size = 5
+            0x00, 0x00, 0x00, 0x00, // stream id
+            0x00, 0x00, 0x02, 0x00, // CIF0: GPS ASCII present (bit 9)
+            0x00, 0x00, 0x00, 0x00, // GPS ASCII word 1 (OUI / TSI / TSF)
+            0xFF, 0xFF, 0xFF, 0xFF, // GPS ASCII num_words
+        ];
+        assert!(Vrt::try_from(buf).is_err());
+    }
+
+    #[test]
+    fn undersized_packet_size_does_not_underflow() {
+        // Signal-data packet declaring packet_size = 1 word while a stream ID is
+        // present. Previously `payload_size_words()` underflowed to ~usize::MAX and
+        // drove an out-of-bounds payload allocation.
+        let buf = [0x10u8, 0x00, 0x00, 0x01, 0xAA, 0xBB, 0xCC, 0xDD];
+        // Must return (Err or Ok) without panicking.
+        let _ = Vrt::try_from(buf.as_ref());
+    }
+}
