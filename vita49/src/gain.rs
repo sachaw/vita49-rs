@@ -29,8 +29,10 @@ pub struct Gain(i32);
 impl Gain {
     /// Create a new `Gain` object given stage 1 and 2 gain in dB.
     pub fn new(stage_1_gain_db: f32, stage_2_gain_db: f32) -> Gain {
-        let s1 = FixedI16::<U7>::from_num(stage_1_gain_db).to_bits() as i32;
-        let s2 = FixedI16::<U7>::from_num(stage_2_gain_db).to_bits() as i32;
+        // Go through `u16` so a negative stage 1 gain doesn't sign-extend
+        // into (and clobber) the stage 2 half-word.
+        let s1 = FixedI16::<U7>::from_num(stage_1_gain_db).to_bits() as u16 as i32;
+        let s2 = FixedI16::<U7>::from_num(stage_2_gain_db).to_bits() as u16 as i32;
         Gain((s2 << 16) | s1)
     }
 
@@ -47,7 +49,9 @@ impl Gain {
 
     /// Sets stage 1 gain (dB)
     pub fn set_stage_1_gain_db(&mut self, stage_1_gain_db: f32) {
-        let s1 = FixedI16::<U7>::from_num(stage_1_gain_db).to_bits() as i32;
+        // Go through `u16` so a negative stage 1 gain doesn't sign-extend
+        // into (and clobber) the stage 2 half-word.
+        let s1 = FixedI16::<U7>::from_num(stage_1_gain_db).to_bits() as u16 as i32;
         self.0 = (self.0 & (0xFFFF_0000u32 as i32)) | s1
     }
 
@@ -59,7 +63,7 @@ impl Gain {
 
     /// Sets stage 2 gain (dB)
     pub fn set_stage_2_gain_db(&mut self, stage_2_gain_db: f32) {
-        let s2 = FixedI16::<U7>::from_num(stage_2_gain_db).to_bits() as i32;
+        let s2 = FixedI16::<U7>::from_num(stage_2_gain_db).to_bits() as u16 as i32;
         self.0 = (self.0 & 0x0000_FFFF) | (s2 << 16)
     }
 }
@@ -116,5 +120,35 @@ mod tests {
             s2,
             max_relative = 0.1
         );
+    }
+
+    #[test]
+    fn negative_gain_round_trip() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        // (stage 1, stage 2) combinations covering every sign mix. A negative
+        // stage 1 gain must not sign-extend into the stage 2 half-word.
+        let cases: [(f32, f32); 5] = [
+            (-48.2, 12.5),
+            (-48.2, 0.0),
+            (12.5, -48.2),
+            (-48.2, -1.5),
+            (-0.5, -0.25),
+        ];
+        for (s1, s2) in cases {
+            let g = Gain::new(s1, s2);
+            assert_relative_eq!(g.stage_1_gain_db(), s1, max_relative = 0.01);
+            assert_relative_eq!(g.stage_2_gain_db(), s2, max_relative = 0.01);
+        }
+    }
+
+    #[test]
+    fn negative_stage_1_setter_preserves_stage_2() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        // Set stage 2 first, then a negative stage 1: stage 2 must survive.
+        let mut g = Gain::new(0.0, 0.0);
+        g.set_stage_2_gain_db(12.5);
+        g.set_stage_1_gain_db(-48.2);
+        assert_relative_eq!(g.stage_1_gain_db(), -48.2, max_relative = 0.01);
+        assert_relative_eq!(g.stage_2_gain_db(), 12.5, max_relative = 0.01);
     }
 }
