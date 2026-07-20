@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Public construction API for `FormattedGps` (`Default` plus getters/setters for the
   Manufacturer OUI, TSI/TSF, position-fix timestamps, and radix-encoded geolocation values)
+- Public construction API for `EcefEphemeris` (`Default` plus getters/setters for the
+  Manufacturer OUI, TSI/TSF, position-fix timestamps, and the radix-encoded ECEF position,
+  attitude, and velocity)
 
 ### Fixed
 - `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the
