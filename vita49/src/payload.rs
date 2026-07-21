@@ -23,9 +23,14 @@ use crate::VitaError;
 /// let context = packet.payload_mut().context_mut().unwrap();
 /// context.set_bandwidth_hz(Some(8e6));
 /// ```
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, DekuRead, DekuWrite)]
+// `DekuWrite` is implemented by hand below: deku 0.20's write derive does not
+// forward a multi-argument variant ctx to an inner type's `to_writer` (it passes
+// `()`), so only `DekuRead` is derived. No container `endian = "endian"` either —
+// with it, deku auto-prepends `endian` to a forwarded variant ctx on read; forward
+// it explicitly on each variant instead so the read ctx matches the hand-written
+// writer.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, DekuRead)]
 #[deku(
-    endian = "endian",
     ctx = "endian: deku::ctx::Endian, packet_header: &PacketHeader",
     id = "packet_header.packet_type()"
 )]
@@ -34,13 +39,30 @@ use crate::VitaError;
 pub enum Payload {
     /// Payload for a context packet.
     #[deku(id = "PacketType::Context | PacketType::ExtensionContext")]
-    Context(Context),
+    Context(#[deku(ctx = "endian")] Context),
     /// Payload for a command packet.
     #[deku(id = "PacketType::Command | PacketType::ExtensionCommand")]
-    Command(#[deku(ctx = "packet_header")] Command),
+    Command(#[deku(ctx = "endian, packet_header")] Command),
     /// Payload for signal data.
     #[deku(id_pat = "_")]
-    SignalData(#[deku(ctx = "packet_header")] SignalData),
+    SignalData(#[deku(ctx = "endian, packet_header")] SignalData),
+}
+
+// Hand-written to work around deku 0.20's `DekuWrite` derive not forwarding a
+// variant's multi-argument ctx to the inner type's `to_writer` (it passes `()`).
+// Mirrors the per-variant `ctx` used by the derived `DekuRead` above.
+impl DekuWriter<(deku::ctx::Endian, &PacketHeader)> for Payload {
+    fn to_writer<W: deku::no_std_io::Write + deku::no_std_io::Seek>(
+        &self,
+        writer: &mut deku::writer::Writer<W>,
+        (endian, packet_header): (deku::ctx::Endian, &PacketHeader),
+    ) -> Result<(), DekuError> {
+        match self {
+            Payload::Context(c) => c.to_writer(writer, endian),
+            Payload::Command(c) => c.to_writer(writer, (endian, packet_header)),
+            Payload::SignalData(s) => s.to_writer(writer, (endian, packet_header)),
+        }
+    }
 }
 
 impl Payload {

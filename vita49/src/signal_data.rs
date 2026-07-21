@@ -154,7 +154,7 @@ impl SignalData {
 
         let mut data = vec![0u8; byte_len];
 
-        reader.read_bytes(byte_len, &mut data)?;
+        reader.read_bytes(byte_len, &mut data, deku::ctx::Order::default())?;
 
         if endian == deku::ctx::Endian::Little {
             for chunk in data.chunks_exact_mut(4) {
