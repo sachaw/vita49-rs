@@ -331,7 +331,42 @@ impl TryFrom<u8> for Tsf {
     }
 }
 
+/// The packet prologue's timestamp mode (TSI/TSF).
+///
+/// A handful of context fields — Age of Current State and Shelf Life of Current
+/// State (§9.7.2), and the Sector/Step-Scan Start-Time subfield (§9.6.2.11) —
+/// take their wire format from the packet prologue's TSI/TSF rather than from a
+/// local indicator, so their word count is not knowable from the field alone.
+/// This is threaded into the CIF-field parser as context so those fields can size
+/// themselves; fields with a fixed size ignore it. The default (both `Null`) means
+/// "no prologue timestamp", used where no such field can appear.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct PrologueCtx {
+    /// Integer-timestamp mode (TSI) from the prologue.
+    pub tsi: Tsi,
+    /// Fractional-timestamp mode (TSF) from the prologue.
+    pub tsf: Tsf,
+}
+
+impl Default for PrologueCtx {
+    fn default() -> Self {
+        PrologueCtx {
+            tsi: Tsi::Null,
+            tsf: Tsf::Null,
+        }
+    }
+}
+
 impl PacketHeader {
+    /// The prologue timestamp mode (TSI/TSF), threaded into CIF-field parsing for
+    /// fields whose wire size follows the packet timestamp (§9.7.2, §9.6.2.11).
+    pub fn prologue(&self) -> PrologueCtx {
+        PrologueCtx {
+            tsi: self.tsi(),
+            tsf: self.tsf(),
+        }
+    }
+
     /// Gets the raw 32-bit value of the packet header.
     pub fn as_u32(&self) -> u32 {
         ((self.hword_1 as u32) << 16) | ((self.packet_size as u32) & 0xFFFF)

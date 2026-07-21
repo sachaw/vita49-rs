@@ -7,12 +7,11 @@ Fields here are compatible with VITA 49.2 and later.
 */
 
 use crate::command_prelude::*;
+use crate::state_time::StateTime;
 use crate::{ack_response::AckResponse, cif0::Cif0, cif7::Cif7Opts};
 use deku::prelude::*;
 use fixed::{types::extra::U6, FixedI16};
-use vita49_macros::{
-    ack_field, cif_basic, cif_field, cif_fields, cif_radix_masked, todo_cif_field,
-};
+use vita49_macros::{ack_field, cif_basic, cif_field, cif_fields, cif_radix_masked};
 
 /// Base data structure for the CIF3 single-bit indicators
 #[derive(
@@ -35,8 +34,8 @@ impl Cif3 {
     cif_field!(dwell, 21);
     cif_field!(jitter, 20);
     // Bits 18-19 are reserved
-    todo_cif_field!(age, 17, 3);
-    todo_cif_field!(shelf_life, 16, 3);
+    cif_field!(age, 17);
+    cif_field!(shelf_life, 16);
     // Bits 8-15 are reserved
     cif_field!(air_temp, 7);
     cif_field!(ground_temp, 6);
@@ -65,10 +64,8 @@ pub struct Cif3Fields {
     duration: i64,
     dwell: i64,
     jitter: i64,
-    // TODO: add basic support
-    age: u32,
-    // TODO: add basic support
-    shelf_life: u32,
+    age: StateTime,
+    shelf_life: StateTime,
     air_temp: i32,
     ground_temp: i32,
     humidity: u32,
@@ -129,10 +126,8 @@ pub trait Cif3Manipulators {
     cif_basic!(cif3, duration, duration, i64);
     cif_basic!(cif3, dwell, dwell, i64);
     cif_basic!(cif3, jitter, jitter, i64);
-    // TODO: add basic support
-    cif_basic!(cif3, age, age, u32);
-    // TODO: add basic support
-    cif_basic!(cif3, shelf_life, shelf_life, u32);
+    cif_basic!(cif3, age, age, StateTime);
+    cif_basic!(cif3, shelf_life, shelf_life, StateTime);
     cif_radix_masked!(cif3, air_temp, air_temp_c, f32, FixedI16::<U6>, i32, i16);
     cif_radix_masked!(cif3, ground_temp, ground_temp_c, f32, FixedI16::<U6>, i32, i16);
     // TODO: add full support

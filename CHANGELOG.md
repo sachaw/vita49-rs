@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public construction API for `EcefEphemeris` (`Default` plus getters/setters for the
   Manufacturer OUI, TSI/TSF, position-fix timestamps, and the radix-encoded ECEF position,
   attitude, and velocity)
+- Parsing and construction for the Age of Current State and Shelf Life of Current State
+  context fields (CIF3 bits 17/16, §9.7.2), sized from the packet prologue TSI/TSF
 
 ### Fixed
 - `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the

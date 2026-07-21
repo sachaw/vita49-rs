@@ -10,7 +10,10 @@ use std::fmt;
 /// this packet is very similar to [`Context`], but is produced on-demand, not in-line with
 /// signal data.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite)]
-#[deku(endian = "endian", ctx = "endian: deku::ctx::Endian")]
+#[deku(
+    endian = "endian",
+    ctx = "endian: deku::ctx::Endian, packet_header: &crate::packet_header::PacketHeader"
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct QueryAck {
     /// CIF0 indicator fields.
@@ -29,24 +32,24 @@ pub struct QueryAck {
     pub cif7: Option<Cif7>,
 
     /// CIF0 data fields.
-    #[deku(ctx = "cif0, Cif7Opts::from(cif7.as_ref())")]
+    #[deku(ctx = "cif0, Cif7Opts::from(cif7.as_ref()), packet_header.prologue()")]
     cif0_fields: Cif0Fields,
     /// CIF1 data fields.
     #[deku(
         cond = "cif0.cif1_enabled()",
-        ctx = "cif1.as_ref(), Cif7Opts::from(cif7.as_ref())"
+        ctx = "cif1.as_ref(), Cif7Opts::from(cif7.as_ref()), packet_header.prologue()"
     )]
     cif1_fields: Option<Cif1Fields>,
     /// CIF2 data fields.
     #[deku(
         cond = "cif0.cif2_enabled()",
-        ctx = "cif2.as_ref(), Cif7Opts::from(cif7.as_ref())"
+        ctx = "cif2.as_ref(), Cif7Opts::from(cif7.as_ref()), packet_header.prologue()"
     )]
     cif2_fields: Option<Cif2Fields>,
     /// CIF3 data fields.
     #[deku(
         cond = "cif0.cif3_enabled()",
-        ctx = "cif3.as_ref(), Cif7Opts::from(cif7.as_ref())"
+        ctx = "cif3.as_ref(), Cif7Opts::from(cif7.as_ref()), packet_header.prologue()"
     )]
     cif3_fields: Option<Cif3Fields>,
 }

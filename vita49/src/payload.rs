@@ -39,7 +39,7 @@ use crate::VitaError;
 pub enum Payload {
     /// Payload for a context packet.
     #[deku(id = "PacketType::Context | PacketType::ExtensionContext")]
-    Context(#[deku(ctx = "endian")] Context),
+    Context(#[deku(ctx = "endian, packet_header")] Context),
     /// Payload for a command packet.
     #[deku(id = "PacketType::Command | PacketType::ExtensionCommand")]
     Command(#[deku(ctx = "endian, packet_header")] Command),
@@ -58,7 +58,7 @@ impl DekuWriter<(deku::ctx::Endian, &PacketHeader)> for Payload {
         (endian, packet_header): (deku::ctx::Endian, &PacketHeader),
     ) -> Result<(), DekuError> {
         match self {
-            Payload::Context(c) => c.to_writer(writer, endian),
+            Payload::Context(c) => c.to_writer(writer, (endian, packet_header)),
             Payload::Command(c) => c.to_writer(writer, (endian, packet_header)),
             Payload::SignalData(s) => s.to_writer(writer, (endian, packet_header)),
         }

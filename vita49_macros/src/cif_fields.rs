@@ -11,6 +11,12 @@ static PRIMITIVES: &[&str] = &[
     "f64", "char", "bool",
 ];
 
+/// Field types whose wire size depends on the packet prologue TSI/TSF and so take
+/// a `prologue: PrologueCtx` context argument. Such a field gets `ctx = "prologue"`
+/// forwarded from the enclosing `Cif*Fields` ctx; every other field type is
+/// prologue-independent and gets no extra ctx.
+static PROLOGUE_TYPES: &[&str] = &["StateTime"];
+
 pub fn cif_fields(attr: TokenStream, item: TokenStream) -> TokenStream {
     let cif_name = parse_macro_input!(attr as Ident);
     let input = parse_macro_input!(item as ItemStruct);
@@ -41,19 +47,32 @@ pub fn cif_fields(attr: TokenStream, item: TokenStream) -> TokenStream {
                 )
             };
 
+        let cif_type_string = cif_type.to_token_stream().to_string();
+
+        // Prologue-sized field types need the prologue TSI/TSF forwarded as ctx.
+        let (main_deku, attr_deku) = if PROLOGUE_TYPES.contains(&cif_type_string.as_str()) {
+            (
+                quote! { #[deku(cond = #main_cond, ctx = "prologue")] },
+                quote! { #[deku(cond = #attr_cond, count = "cif7_opts.num_extra_attrs", ctx = "prologue")] },
+            )
+        } else {
+            (
+                quote! { #[deku(cond = #main_cond)] },
+                quote! { #[deku(cond = #attr_cond, count = "cif7_opts.num_extra_attrs")] },
+            )
+        };
+
         let expanded = quote! {
             #[doc = #field_doc]
-            #[deku(cond = #main_cond)]
+            #main_deku
             pub #cif_field: Option<#cif_type>,
 
             #[doc = #attr_doc]
             #[cfg(feature = "cif7")]
-            #[deku(cond = #attr_cond, count = "cif7_opts.num_extra_attrs")]
+            #attr_deku
             pub #attr_field: Vec<#cif_type>,
         };
         expanded_fields.push(expanded);
-
-        let cif_type_string = cif_type.to_token_stream().to_string();
 
         let expanded = if PRIMITIVES.contains(&cif_type_string.as_str()) {
             quote! {
@@ -102,8 +121,12 @@ pub fn cif_fields(attr: TokenStream, item: TokenStream) -> TokenStream {
     if cif_name != "cif0" || format!("{struct_name}").contains("Ack") {
         cif_type_name = format!("Option<{cif_type_name}>");
     }
-    let deku_ctx =
-        format!("endian: deku::ctx::Endian, {cif_name}: {cif_type_name}, cif7_opts: Cif7Opts");
+    // `prologue` carries the packet prologue's TSI/TSF so fields whose wire size
+    // follows the packet timestamp (Age / Shelf Life, Sector Start-Time) can size
+    // themselves; fixed-size fields ignore it. Fully-qualified so no per-module use.
+    let deku_ctx = format!(
+        "endian: deku::ctx::Endian, {cif_name}: {cif_type_name}, cif7_opts: Cif7Opts, prologue: crate::packet_header::PrologueCtx"
+    );
     let struct_doc = format!("Structure for all {cif_name} data fields (not indicators)");
     let size_doc = format!("Gets the size of all {cif_name} data fields in 32-bit words");
     let empty_doc = format!("Returns true if all {cif_name} data fields are empty, false if not");

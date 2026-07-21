@@ -50,7 +50,7 @@ use deku::prelude::*;
 pub enum CommandPayload {
     /// Payload for a control packet.
     #[deku(id = "CommandPayload::Control(_)")]
-    Control(Control),
+    Control(#[deku(ctx = "packet_header")] Control),
     /// Payload for a cancellation packet.
     #[deku(id = "CommandPayload::Cancellation(_)")]
     Cancellation(Cancellation),
@@ -62,7 +62,7 @@ pub enum CommandPayload {
     ExecAck(#[deku(ctx = "cam")] Ack),
     /// Payload for a query ACK packet.
     #[deku(id = "CommandPayload::QueryAck(_)")]
-    QueryAck(QueryAck),
+    QueryAck(#[deku(ctx = "packet_header")] QueryAck),
 }
 
 impl CommandPayload {

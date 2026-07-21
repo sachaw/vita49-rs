@@ -61,43 +61,43 @@ pub struct Ack {
 
     #[deku(
         cond = "wif0.is_some()",
-        ctx = "wif0.as_ref(), Cif7Opts::from(wif7.as_ref())"
+        ctx = "wif0.as_ref(), Cif7Opts::from(wif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     wif0_fields: Option<Cif0AckFields>,
     #[deku(
         cond = "wif1.is_some()",
-        ctx = "wif1.as_ref(), Cif7Opts::from(wif7.as_ref())"
+        ctx = "wif1.as_ref(), Cif7Opts::from(wif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     wif1_fields: Option<Cif1AckFields>,
     #[deku(
         cond = "wif2.is_some()",
-        ctx = "wif2.as_ref(), Cif7Opts::from(wif7.as_ref())"
+        ctx = "wif2.as_ref(), Cif7Opts::from(wif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     wif2_fields: Option<Cif2AckFields>,
     #[deku(
         cond = "wif3.is_some()",
-        ctx = "wif3.as_ref(), Cif7Opts::from(wif7.as_ref())"
+        ctx = "wif3.as_ref(), Cif7Opts::from(wif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     wif3_fields: Option<Cif3AckFields>,
 
     #[deku(
         cond = "eif0.is_some()",
-        ctx = "eif0.as_ref(), Cif7Opts::from(eif7.as_ref())"
+        ctx = "eif0.as_ref(), Cif7Opts::from(eif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     eif0_fields: Option<Cif0AckFields>,
     #[deku(
         cond = "eif1.is_some()",
-        ctx = "eif1.as_ref(), Cif7Opts::from(eif7.as_ref())"
+        ctx = "eif1.as_ref(), Cif7Opts::from(eif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     eif1_fields: Option<Cif1AckFields>,
     #[deku(
         cond = "eif2.is_some()",
-        ctx = "eif2.as_ref(), Cif7Opts::from(eif7.as_ref())"
+        ctx = "eif2.as_ref(), Cif7Opts::from(eif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     eif2_fields: Option<Cif2AckFields>,
     #[deku(
         cond = "eif3.is_some()",
-        ctx = "eif3.as_ref(), Cif7Opts::from(eif7.as_ref())"
+        ctx = "eif3.as_ref(), Cif7Opts::from(eif7.as_ref()), crate::packet_header::PrologueCtx::default()"
     )]
     eif3_fields: Option<Cif3AckFields>,
 }
