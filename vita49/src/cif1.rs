@@ -15,7 +15,7 @@ use crate::{
 use deku::prelude::*;
 use fixed::{
     types::extra::{U20, U6, U7},
-    FixedI16, FixedI32, FixedU64,
+    FixedI16, FixedI64, FixedU32, FixedU64,
 };
 use vita49_macros::{
     ack_field, cif_basic, cif_field, cif_fields, cif_radix, cif_radix_masked, todo_cif_field,
@@ -82,7 +82,7 @@ pub struct Cif1Fields {
     spatial_ref_type: u32,
     // TODO: add full support
     beam_widths: u32,
-    range: i32,
+    range: u32,
     // TODO: add full support
     eb_over_no_and_ber: i32,
     threshold: Threshold,
@@ -91,7 +91,7 @@ pub struct Cif1Fields {
     second_and_third_order_intercept_points: i32,
     // TODO: add full support
     snr_figure: i32,
-    aux_freq: u64,
+    aux_freq: i64,
     aux_gain: Gain,
     aux_bandwidth: u64,
     // TODO: add basic support
@@ -173,7 +173,7 @@ pub trait Cif1Manipulators {
     cif_basic!(cif1, spatial_ref_type, spatial_ref_type, u32);
     // TODO: add full support
     cif_basic!(cif1, beam_widths, beam_widths, u32);
-    cif_radix!(cif1, range, range_m, f32, FixedI32::<U6>);
+    cif_radix!(cif1, range, range_m, f32, FixedU32::<U6>);
     // TODO: add full support
     cif_basic!(cif1, eb_over_no_and_ber, eb_over_no_and_ber, i32);
     cif_basic!(cif1, threshold, threshold, Threshold);
@@ -182,7 +182,7 @@ pub trait Cif1Manipulators {
     cif_basic!(cif1, second_and_third_order_intercept_points, second_and_third_order_intercept_points, i32);
     // TODO: add full support
     cif_basic!(cif1, snr_figure, snr_figure, i32);
-    cif_radix!(cif1, aux_freq, aux_freq_hz, f64, FixedU64::<U20>);
+    cif_radix!(cif1, aux_freq, aux_freq_hz, f64, FixedI64::<U20>);
     cif_basic!(cif1, aux_gain, aux_gain, Gain);
     cif_radix!(cif1, aux_bandwidth, aux_bandwidth_hz, f64, FixedU64::<U20>);
     // TODO: add basic support
@@ -301,5 +301,22 @@ impl fmt::Display for Cif1 {
         writeln!(f, "  Version and build code: {}", self.version_and_build_code())?;
         writeln!(f, "  Buffer size: {}", self.buffer_size())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn large_range_is_accepted_unsigned() {
+        // Range is unsigned, 0..67,108,864 m (Rule 9.4.10-1). A value beyond the
+        // old signed ceiling (2^25 m) must be stored rather than overflow-panic
+        // when converted to the fixed-point representation.
+        let mut packet = Vrt::new_context_packet();
+        let ctx = packet.payload_mut().context_mut().unwrap();
+        ctx.set_range_m(Some(50_000_000.0));
+        assert_relative_eq!(ctx.range_m().unwrap(), 50_000_000.0, max_relative = 1e-6);
     }
 }

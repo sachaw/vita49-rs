@@ -76,7 +76,7 @@ pub struct Cif0Fields {
     reference_point_id: u32,
     bandwidth: u64,
     if_ref_freq: i64,
-    rf_ref_freq: u64,
+    rf_ref_freq: i64,
     rf_ref_freq_offset: i64,
     if_band_offset: i64,
     reference_level: i32,
@@ -141,7 +141,7 @@ pub trait Cif0Manipulators {
     cif_basic!(cif0, reference_point_id, reference_point_id, u32);
     cif_radix!(cif0, bandwidth, bandwidth_hz, f64, FixedU64::<U20>);
     cif_radix!(cif0, if_ref_freq, if_ref_freq_hz, f64, FixedI64::<U20>);
-    cif_radix!(cif0, rf_ref_freq, rf_ref_freq_hz, f64, FixedU64::<U20>);
+    cif_radix!(cif0, rf_ref_freq, rf_ref_freq_hz, f64, FixedI64::<U20>);
     cif_radix!(cif0, rf_ref_freq_offset, rf_ref_freq_offset_hz, f64, FixedI64::<U20>);
     cif_radix!(cif0, if_band_offset, if_band_offset_hz, f64, FixedI64::<U20>);
     cif_radix_masked!(cif0, reference_level, reference_level_db, f32, FixedI16::<U7>, i32, i16);
@@ -245,5 +245,53 @@ impl fmt::Display for Cif0 {
         writeln!(f, "  CIF2: {}", self.cif2_enabled())?;
         writeln!(f, "  CIF1: {}", self.cif1_enabled())?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn negative_rf_ref_freq_round_trips() {
+        // Two's-complement (Rule 9.5.10-2); previously parsed unsigned as ~+17.6 THz.
+        let mut packet = Vrt::new_context_packet();
+        packet
+            .payload_mut()
+            .context_mut()
+            .unwrap()
+            .set_rf_ref_freq_hz(Some(-1.0));
+        packet.update_packet_size();
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_relative_eq!(
+            parsed
+                .payload()
+                .context()
+                .unwrap()
+                .rf_ref_freq_hz()
+                .unwrap(),
+            -1.0,
+            max_relative = 1e-6
+        );
+    }
+
+    #[test]
+    fn negative_reference_level_leaves_reserved_bits_zero() {
+        // Upper 16 bits are reserved and shall be zero (Rule 9.5.9-2).
+        let mut packet = Vrt::new_context_packet();
+        let ctx = packet.payload_mut().context_mut().unwrap();
+        ctx.set_reference_level_db(Some(-40.0));
+        let raw = ctx.cif0_fields().reference_level.unwrap();
+        assert_eq!(
+            raw as u32 & 0xFFFF_0000,
+            0,
+            "reserved upper 16 bits must be zero"
+        );
+        assert_relative_eq!(
+            ctx.reference_level_db().unwrap(),
+            -40.0,
+            max_relative = 0.01
+        );
     }
 }

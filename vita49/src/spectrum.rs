@@ -548,7 +548,7 @@ impl Spectrum {
             WindowTimeDeltaInterpretation::Reserved => return Err(VitaError::ReservedField),
             _ => {
                 let v = u8::from(window_time_delta_interpretation) as u32;
-                self.spectrum_type = (self.spectrum_type & !(0b1111 << 8)) | (v << 16)
+                self.spectrum_type = (self.spectrum_type & !(0b1111 << 16)) | (v << 16)
             }
         }
         Ok(())
@@ -725,5 +725,32 @@ impl fmt::Display for Spectrum {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wtdi_setter_does_not_clobber_averaging_type() {
+        let mut s = Spectrum::default();
+        s.set_averaging_type(AveragingType::Exponential).unwrap();
+        s.set_window_time_delta_interpretation(WindowTimeDeltaInterpretation::Time)
+            .unwrap();
+        // The WTDI (bits 19:16) setter must not disturb the averaging type (bits 15:8).
+        assert_eq!(s.averaging_type(), AveragingType::Exponential);
+        assert_eq!(
+            s.window_time_delta_interpretation(),
+            WindowTimeDeltaInterpretation::Time
+        );
+        // A new WTDI overwrites the old one rather than OR-accumulating.
+        s.set_window_time_delta_interpretation(WindowTimeDeltaInterpretation::Samples)
+            .unwrap();
+        assert_eq!(
+            s.window_time_delta_interpretation(),
+            WindowTimeDeltaInterpretation::Samples
+        );
+        assert_eq!(s.averaging_type(), AveragingType::Exponential);
     }
 }
