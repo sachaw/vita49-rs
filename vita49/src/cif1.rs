@@ -10,7 +10,8 @@ use core::fmt;
 
 use crate::{
     ack::AckLevel, ack_response::AckResponse, cif0::Cif0, cif7::Cif7Opts, gain::Gain,
-    spectrum::Spectrum, Cif0AckFields, Threshold,
+    spectrum::Spectrum, three_d_pointing_vector::ThreeDPointingVectorStruct, Cif0AckFields,
+    Threshold,
 };
 use deku::prelude::*;
 use fixed::{
@@ -33,7 +34,7 @@ impl Cif1 {
     cif_field!(phase_offset, 31);
     cif_field!(polarization, 30);
     cif_field!(three_d_pointing_vector, 29);
-    todo_cif_field!(three_d_pointing_vector_struct, 28, 1);
+    cif_field!(three_d_pointing_vector_struct, 28);
     cif_field!(spatial_scan_type, 27);
     cif_field!(spatial_ref_type, 26);
     cif_field!(beam_widths, 25);
@@ -75,7 +76,7 @@ pub struct Cif1Fields {
     // TODO: add full support
     three_d_pointing_vector: i32,
     // TODO: add basic support
-    three_d_pointing_vector_struct: u32,
+    three_d_pointing_vector_struct: ThreeDPointingVectorStruct,
     // TODO: add full support
     spatial_scan_type: u32,
     // TODO: add full support
@@ -166,7 +167,7 @@ pub trait Cif1Manipulators {
     // TODO: add full support
     cif_basic!(cif1, three_d_pointing_vector, three_d_pointing_vector, i32);
     // TODO: add basic support
-    cif_basic!(cif1, three_d_pointing_vector_struct, three_d_pointing_vector_struct, u32);
+    cif_basic!(cif1, three_d_pointing_vector_struct, three_d_pointing_vector_struct, ThreeDPointingVectorStruct);
     // TODO: add full support
     cif_basic!(cif1, spatial_scan_type, spatial_scan_type, u32);
     // TODO: add full support

@@ -20,8 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attitude, and velocity)
 - Parsing and construction for the Age of Current State and Shelf Life of Current State
   context fields (CIF3 bits 17/16, §9.7.2), sized from the packet prologue TSI/TSF
+- Parsing and construction for the 3-D Pointing Vector Structure context field (CIF1
+  bit 28, §9.4.1.2): typed elevation/azimuth pointing records with optional per-record
+  and global Index/Reference/Beam words
 
 ### Fixed
+- `cif_basic!`-generated setters moved a non-`Copy` field value out of the setter
+  argument before storing it, so only `Copy` field types could be used
 - `Gain::new` and `set_stage_1_gain_db` sign-extended a negative stage-1 gain over the
   stage-2 half-word
 

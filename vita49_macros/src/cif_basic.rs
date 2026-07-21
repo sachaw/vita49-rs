@@ -143,7 +143,10 @@ pub fn cif_basic(input: TokenStream) -> TokenStream {
             }
             #[doc = #set_fn_doc]
             fn #set_fn(&mut self, #cif_field_w_unit: Option<#friendly_type>) {
-                if let Some(v) = #cif_field_w_unit {
+                // `.is_some()` rather than `if let Some(v)`: the value is moved into
+                // the field below, so it must not be consumed by the pattern here
+                // (that only worked for `Copy` field types).
+                if #cif_field_w_unit.is_some() {
                     if self.#cif().is_none() {
                         self.cif0_mut().#enable_cif_fn();
                         *self.#cif_mut() = Some(#cif_type_name::default())
