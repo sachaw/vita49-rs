@@ -46,6 +46,10 @@ pub enum VitaError {
     /// sub-packets is executed on something else.
     #[error("function can only run on query ACK command packets")]
     QueryAckOnly,
+    /// Error given when attempting to build an acknowledge packet for a request
+    /// that is itself an acknowledge packet (an ACK cannot be acknowledged).
+    #[error("an acknowledge packet cannot itself be acknowledged")]
+    CannotAcknowledgeAck,
     /// Error given when attempting to set a timestamp field with a
     /// Tsi or Tsf mode that doesn't make sense.
     #[error("attempted to set timestamp field with Tsi/Tsf mode that doesn't make sense")]

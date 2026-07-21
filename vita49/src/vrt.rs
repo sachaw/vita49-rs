@@ -221,6 +221,70 @@ impl Vrt {
         ret
     }
 
+    /// Build an acknowledge packet responding to a received command packet.
+    ///
+    /// The returned ACK echoes the request's message ID, controllee/controller
+    /// identifiers, and stream identifier so a controller can match the
+    /// acknowledgement to its request (ANSI/VITA-49.2-2017 8.3.1). The caller
+    /// then populates the warning/error fields; the CAM warning/error bits are
+    /// reconciled automatically on [`update_packet_size`](Vrt::update_packet_size).
+    ///
+    /// # Errors
+    /// Returns an error if `request` is not a command packet, or is itself an
+    /// acknowledge packet (an acknowledge packet cannot be acknowledged).
+    ///
+    /// # Example
+    /// ```
+    /// use vita49::prelude::*;
+    /// use vita49::command_prelude::*;
+    /// # fn main() -> Result<(), VitaError> {
+    /// let mut request = Vrt::new_control_packet();
+    /// request.set_stream_id(Some(0xABCD));
+    /// let command = request.payload_mut().command_mut()?;
+    /// command.set_message_id(0x42);
+    /// command.set_controllee_id(Some(7))?;
+    ///
+    /// let ack = Vrt::new_ack_for(&request, AckKind::Execution)?;
+    /// let ack_command = ack.payload().command()?;
+    /// assert_eq!(ack_command.message_id(), 0x42);
+    /// assert_eq!(ack_command.controllee_id(), Some(7));
+    /// assert_eq!(ack.stream_id(), Some(0xABCD));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new_ack_for(request: &Vrt, kind: AckKind) -> Result<Vrt, VitaError> {
+        let req_command = request.payload().command()?;
+        if request.header.is_ack_packet()? {
+            return Err(VitaError::CannotAcknowledgeAck);
+        }
+
+        // Copy the request identity out before borrowing the new ACK mutably.
+        let message_id = req_command.message_id();
+        let controllee_id = req_command.controllee_id();
+        let controllee_uuid = req_command.controllee_uuid();
+        let controller_id = req_command.controller_id();
+        let controller_uuid = req_command.controller_uuid();
+
+        let mut ack = match kind {
+            AckKind::Validation => Vrt::new_validation_ack_packet(),
+            AckKind::Execution => Vrt::new_exec_ack_packet(),
+            AckKind::Query => Vrt::new_query_ack_packet(),
+        };
+        ack.set_stream_id(request.stream_id());
+
+        let ack_command = ack.payload_mut().command_mut()?;
+        ack_command.set_message_id(message_id);
+        // The request's ID and UUID variants are mutually exclusive, so at most
+        // one of each pair is set; echo whichever the controller used.
+        ack_command.set_controllee_id(controllee_id)?;
+        ack_command.set_controllee_uuid(controllee_uuid)?;
+        ack_command.set_controller_id(controller_id)?;
+        ack_command.set_controller_uuid(controller_uuid)?;
+
+        ack.update_packet_size();
+        Ok(ack)
+    }
+
     /// Gets a reference to the packet header.
     pub fn header(&self) -> &PacketHeader {
         &self.header
@@ -530,6 +594,10 @@ impl Vrt {
     /// after any functions `set_*()`) to make sure the header size is set correctly
     /// prior to serialization.
     ///
+    /// For an acknowledge packet this also reconciles the CAM warning/error
+    /// indicator bits with the WIF/EIF contents (see
+    /// [`Command::sync_ack_cam`](Command::sync_ack_cam)).
+    ///
     /// # Example
     /// ```
     /// use vita49::prelude::*;
@@ -541,6 +609,13 @@ impl Vrt {
     /// // ... write the packet
     /// ```
     pub fn update_packet_size(&mut self) {
+        // For an acknowledge packet, reconcile the CAM warning/error bits with
+        // the WIF/EIF contents before sizing so the header, the CAM indicators,
+        // and the serialized fields all agree.
+        if let Ok(command) = self.payload.command_mut() {
+            command.sync_ack_cam();
+        }
+
         let mut packet_size_words = 1;
         if self.header.stream_id_included() {
             packet_size_words += 1;

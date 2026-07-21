@@ -40,7 +40,7 @@ mod trailer;
 mod vrt;
 
 // Public exports
-pub use crate::ack::{Ack, AckLevel};
+pub use crate::ack::{Ack, AckKind, AckLevel};
 pub use crate::ack_response::AckResponse;
 pub use crate::cancellation::Cancellation;
 pub use crate::cif0::*;
@@ -96,7 +96,7 @@ pub mod command_prelude {
     pub use crate::cif0::{Cif0AckFields, Cif0AckManipulators};
     pub use crate::cif1::{Cif1AckFields, Cif1AckManipulators};
     pub use crate::{
-        Ack, AckLevel, AckResponse, ActionMode, Cancellation, Command, CommandPayload, Control,
-        ControlAckMode, QueryAck,
+        Ack, AckKind, AckLevel, AckResponse, ActionMode, Cancellation, Command, CommandPayload,
+        Control, ControlAckMode, QueryAck,
     };
 }

@@ -249,6 +249,42 @@ impl Command {
         Ok(())
     }
 
+    /// Reconcile the CAM warning/error indicator bits with the actual contents
+    /// of an acknowledge payload.
+    ///
+    /// The Warning Indicator Field is present on the wire only when the CAM's
+    /// AckW bit is set, and the Error Indicator Field only when its AckEr bit is
+    /// set (ANSI/VITA-49.2-2017 8.4.1.1). The per-field setters populate the
+    /// WIF/EIF contents but cannot reach the CAM (which lives on the command,
+    /// not the ACK payload), so this must run before serialization to keep the
+    /// indicator bits consistent with the payload.
+    ///
+    /// AckEr is applicable only to an Execution Acknowledge; a Validation
+    /// Acknowledge must always leave it zero (bit 16). Any error content on a
+    /// validation ACK is therefore dropped here so the payload can never
+    /// contradict the CAM. [`Vrt::update_packet_size`](Vrt::update_packet_size)
+    /// calls this automatically; on a non-ACK payload it is a no-op.
+    pub fn sync_ack_cam(&mut self) {
+        let (warning, error) = match &mut self.command_payload {
+            CommandPayload::ValidationAck(ack) => {
+                ack.clear_error_fields();
+                (ack.has_warning_fields(), false)
+            }
+            CommandPayload::ExecAck(ack) => (ack.has_warning_fields(), ack.has_error_fields()),
+            _ => return,
+        };
+        if warning {
+            self.cam.set_warning();
+        } else {
+            self.cam.unset_warning();
+        }
+        if error {
+            self.cam.set_error();
+        } else {
+            self.cam.unset_error();
+        }
+    }
+
     /// Get a reference to the underlying command payload enumeration.
     pub fn payload(&self) -> &CommandPayload {
         &self.command_payload
@@ -345,5 +381,173 @@ mod tests {
         command.set_cam(cam);
         command.controllee_id = Some(123);
         command.controller_uuid = Some(321);
+    }
+
+    #[test]
+    fn exec_ack_with_warning_and_error_fields_round_trips() {
+        use crate::command_prelude::*;
+        // An Execution Acknowledge may carry both warnings and errors. Before the
+        // CAM was reconciled with the payload, the AckW/AckEr bits stayed clear,
+        // so the WIF/EIF contents desynced the stream on re-parse.
+        let mut packet = Vrt::new_exec_ack_packet();
+        {
+            let ack = packet
+                .payload_mut()
+                .command_mut()
+                .unwrap()
+                .payload_mut()
+                .exec_ack_mut()
+                .unwrap();
+            let mut warn = AckResponse::default();
+            warn.set_param_out_of_range();
+            ack.set_bandwidth(AckLevel::Warning, Some(warn));
+            let mut err = AckResponse::default();
+            err.set_param_out_of_range();
+            ack.set_bandwidth(AckLevel::Error, Some(err));
+        }
+        packet.update_packet_size();
+
+        // The CAM now advertises both a warning and an error indicator field.
+        let cam = packet.payload().command().unwrap().cam();
+        assert!(cam.warning(), "AckW bit must be set when a WIF is present");
+        assert!(cam.error(), "AckEr bit must be set when an EIF is present");
+
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_eq!(
+            parsed, packet,
+            "ACK with WIF and EIF must round-trip exactly"
+        );
+    }
+
+    #[test]
+    fn validation_ack_warning_leaves_acker_clear_and_round_trips() {
+        use crate::command_prelude::*;
+        // A Validation Acknowledge may report warnings (AckW) but never errors
+        // (AckEr is not applicable to AckV, bit 16).
+        let mut packet = Vrt::new_validation_ack_packet();
+        {
+            let ack = packet
+                .payload_mut()
+                .command_mut()
+                .unwrap()
+                .payload_mut()
+                .validation_ack_mut()
+                .unwrap();
+            let mut warn = AckResponse::default();
+            warn.set_param_out_of_range();
+            ack.set_bandwidth(AckLevel::Warning, Some(warn));
+        }
+        packet.update_packet_size();
+
+        let cam = packet.payload().command().unwrap().cam();
+        assert!(cam.warning(), "AckW must be set for a warning-only ACK");
+        assert!(!cam.error(), "AckEr must stay clear on a validation ACK");
+
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_eq!(parsed, packet);
+    }
+
+    #[test]
+    fn validation_ack_drops_inapplicable_error_content() {
+        use crate::command_prelude::*;
+        // Setting an error field on a validation ACK is a misuse: AckEr is not
+        // applicable to AckV, so the error content is normalised away before
+        // serialization rather than producing a non-conformant (or desynced)
+        // packet.
+        let mut packet = Vrt::new_validation_ack_packet();
+        {
+            let ack = packet
+                .payload_mut()
+                .command_mut()
+                .unwrap()
+                .payload_mut()
+                .validation_ack_mut()
+                .unwrap();
+            let mut err = AckResponse::default();
+            err.set_param_out_of_range();
+            ack.set_bandwidth(AckLevel::Error, Some(err));
+        }
+        packet.update_packet_size();
+
+        let command = packet.payload().command().unwrap();
+        assert!(
+            !command.cam().error(),
+            "AckEr must be clear on a validation ACK"
+        );
+        assert!(
+            command
+                .payload()
+                .validation_ack()
+                .unwrap()
+                .bandwidth()
+                .is_none(),
+            "the inapplicable error field must be dropped"
+        );
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_eq!(parsed, packet);
+    }
+
+    #[test]
+    fn clearing_the_last_ack_field_clears_its_cam_bit() {
+        use crate::command_prelude::*;
+        let mut packet = Vrt::new_exec_ack_packet();
+        {
+            let ack = packet
+                .payload_mut()
+                .command_mut()
+                .unwrap()
+                .payload_mut()
+                .exec_ack_mut()
+                .unwrap();
+            let mut err = AckResponse::default();
+            err.set_param_out_of_range();
+            ack.set_bandwidth(AckLevel::Error, Some(err));
+        }
+        packet.update_packet_size();
+        assert!(packet.payload().command().unwrap().cam().error());
+
+        // Removing the only error field must clear AckEr again.
+        packet
+            .payload_mut()
+            .command_mut()
+            .unwrap()
+            .payload_mut()
+            .exec_ack_mut()
+            .unwrap()
+            .set_bandwidth(AckLevel::Error, None);
+        packet.update_packet_size();
+        assert!(
+            !packet.payload().command().unwrap().cam().error(),
+            "AckEr must clear once the last error field is removed"
+        );
+    }
+
+    #[test]
+    fn new_ack_for_echoes_identity_and_round_trips() {
+        use crate::command_prelude::*;
+        let mut request = Vrt::new_control_packet();
+        request.set_stream_id(Some(0x1234));
+        let command = request.payload_mut().command_mut().unwrap();
+        command.set_message_id(0xAABB);
+        command.set_controller_id(Some(9)).unwrap();
+
+        let ack = Vrt::new_ack_for(&request, AckKind::Execution).unwrap();
+        let parsed = Vrt::try_from(ack.to_bytes().unwrap().as_ref()).unwrap();
+        assert_eq!(parsed, ack);
+        let ack_command = parsed.payload().command().unwrap();
+        assert_eq!(ack_command.message_id(), 0xAABB);
+        assert_eq!(ack_command.controller_id(), Some(9));
+        assert_eq!(parsed.stream_id(), Some(0x1234));
+    }
+
+    #[test]
+    fn new_ack_for_rejects_non_command_and_ack_requests() {
+        use crate::command_prelude::*;
+        // A signal-data packet is not a command and cannot be acknowledged.
+        let signal = Vrt::new_signal_data_packet();
+        assert!(Vrt::new_ack_for(&signal, AckKind::Validation).is_err());
+        // An acknowledge packet cannot itself be acknowledged.
+        let ack = Vrt::new_validation_ack_packet();
+        assert!(Vrt::new_ack_for(&ack, AckKind::Validation).is_err());
     }
 }

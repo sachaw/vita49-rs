@@ -19,6 +19,18 @@ pub enum AckLevel {
     Error,
 }
 
+/// Which kind of acknowledge packet to generate in response to a command.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AckKind {
+    /// A validation acknowledge (AckV).
+    Validation,
+    /// An execution acknowledge (AckX).
+    Execution,
+    /// A query-state acknowledge (AckS).
+    Query,
+}
+
 /// ACK data structure shared by validation and execution ACK packets.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, DekuRead, DekuWrite)]
 #[deku(
@@ -131,6 +143,34 @@ impl Ack {
             ret += 1 + f.size_words();
         }
         ret
+    }
+
+    /// Drop every Error Indicator Field and its contents.
+    ///
+    /// The Error Indicator Field is only applicable to an Execution Acknowledge;
+    /// a Validation Acknowledge must not carry one (CAM AckEr, bit 16,
+    /// ANSI/VITA-49.2-2017 8.4.1.1). Used to normalise a validation ACK before
+    /// serialization so the payload can never disagree with the CAM.
+    pub(crate) fn clear_error_fields(&mut self) {
+        self.eif0 = None;
+        self.eif1 = None;
+        self.eif2 = None;
+        self.eif3 = None;
+        self.eif7 = None;
+        self.eif0_fields = None;
+        self.eif1_fields = None;
+        self.eif2_fields = None;
+        self.eif3_fields = None;
+    }
+
+    /// True if any Error Indicator Field content is present.
+    pub(crate) fn has_error_fields(&self) -> bool {
+        self.eif0.is_some()
+    }
+
+    /// True if any Warning Indicator Field content is present.
+    pub(crate) fn has_warning_fields(&self) -> bool {
+        self.wif0.is_some()
     }
 }
 
