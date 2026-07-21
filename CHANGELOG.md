@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parsing and construction for the 3-D Pointing Vector Structure context field (CIF1
   bit 28, §9.4.1.2): typed elevation/azimuth pointing records with optional per-record
   and global Index/Reference/Beam words
+- Parsing and construction for the Index List context field (CIF1 bit 7, §9.3.2):
+  8/16/32-bit packed index entries selecting Array-of-Records records
 
 ### Fixed
 - `cif_basic!`-generated setters moved a non-`Copy` field value out of the setter
