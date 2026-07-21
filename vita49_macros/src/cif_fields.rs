@@ -15,7 +15,7 @@ static PRIMITIVES: &[&str] = &[
 /// a `prologue: PrologueCtx` context argument. Such a field gets `ctx = "prologue"`
 /// forwarded from the enclosing `Cif*Fields` ctx; every other field type is
 /// prologue-independent and gets no extra ctx.
-static PROLOGUE_TYPES: &[&str] = &["StateTime"];
+static PROLOGUE_TYPES: &[&str] = &["StateTime", "SectorStepScan"];
 
 pub fn cif_fields(attr: TokenStream, item: TokenStream) -> TokenStream {
     let cif_name = parse_macro_input!(attr as Ident);

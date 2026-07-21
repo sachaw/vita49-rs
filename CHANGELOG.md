@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and global Index/Reference/Beam words
 - Parsing and construction for the Index List context field (CIF1 bit 7, §9.3.2):
   8/16/32-bit packed index entries selecting Array-of-Records records
+- Parsing and construction for the Sector/Step-Scan context field (CIF1 bit 9, §9.6.2):
+  scan/step sector records with frequency, gain, threshold and timing subfields,
+  including a prologue-TSI/TSF-sized Start Time
 
 ### Fixed
 - `cif_basic!`-generated setters moved a non-`Copy` field value out of the setter

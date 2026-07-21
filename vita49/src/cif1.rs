@@ -10,8 +10,8 @@ use core::fmt;
 
 use crate::{
     ack::AckLevel, ack_response::AckResponse, cif0::Cif0, cif7::Cif7Opts, gain::Gain,
-    index_list::IndexList, spectrum::Spectrum, three_d_pointing_vector::ThreeDPointingVectorStruct,
-    Cif0AckFields, Threshold,
+    index_list::IndexList, sector_step_scan::SectorStepScan, spectrum::Spectrum,
+    three_d_pointing_vector::ThreeDPointingVectorStruct, Cif0AckFields, Threshold,
 };
 use deku::prelude::*;
 use fixed::{
@@ -51,7 +51,7 @@ impl Cif1 {
     // Bit 12 is reserved
     todo_cif_field!(array_of_cifs, 11, 1);
     cif_field!(spectrum, 10);
-    todo_cif_field!(sector_scan, 9, 1);
+    cif_field!(sector_scan, 9);
     // Bit 8 is reserved
     cif_field!(index_list, 7);
     cif_field!(discrete_io_32, 6);
@@ -99,7 +99,7 @@ pub struct Cif1Fields {
     array_of_cifs: u32,
     spectrum: Spectrum,
     // TODO: add basic support
-    sector_scan: u32,
+    sector_scan: SectorStepScan,
     // TODO: add basic support
     index_list: IndexList,
     discrete_io_32: u32,
@@ -190,7 +190,7 @@ pub trait Cif1Manipulators {
     cif_basic!(cif1, array_of_cifs, array_of_cifs, u32);
     cif_basic!(cif1, spectrum, spectrum, Spectrum);
     // TODO: add basic support
-    cif_basic!(cif1, sector_scan, sector_scan, u32);
+    cif_basic!(cif1, sector_scan, sector_scan, SectorStepScan);
     // TODO: add basic support
     cif_basic!(cif1, index_list, index_list, IndexList);
     cif_basic!(cif1, discrete_io_32, discrete_io_32, u32);
