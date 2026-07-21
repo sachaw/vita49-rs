@@ -303,3 +303,30 @@ impl fmt::Display for Cif1 {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn setting_a_cif1_value_does_not_enable_cif7_and_round_trips() {
+        // Setting a plain field value must not flip CIF0's field-attributes
+        // (CIF7) indicator. Doing so made the parser expect an absent CIF7
+        // word and desynced every packet carrying a CIF1/2/3 radix field.
+        let mut packet = Vrt::new_context_packet();
+        let ctx = packet.payload_mut().context_mut().unwrap();
+        ctx.set_range_m(Some(1000.0));
+        assert!(
+            !Cif0Manipulators::cif0(ctx).field_attributes_enabled(),
+            "a plain value setter must not enable CIF7 attributes"
+        );
+        packet.update_packet_size();
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_relative_eq!(
+            parsed.payload().context().unwrap().range_m().unwrap(),
+            1000.0,
+            max_relative = 1e-3
+        );
+    }
+}

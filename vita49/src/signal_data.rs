@@ -137,7 +137,13 @@ impl SignalData {
 
     /// Gets the size of the payload in 32-bit words.
     pub fn size_words(&self) -> u16 {
-        (self.data.len() / 4) as u16
+        // The payload is zero-padded to a 32-bit boundary on write, so a length
+        // that is not a multiple of 4 still occupies a whole trailing word;
+        // round up so the reported size matches the serialized length. A whole
+        // VRT packet is capped at u16::MAX words by the 16-bit packet-size field
+        // (section 5.1.1), so saturate rather than wrap for an over-large
+        // payload instead of truncating to a small bogus value.
+        u16::try_from((self.data.len() + 3) / 4).unwrap_or(u16::MAX)
     }
 
     /// Gets the size of the payload in bytes.
@@ -191,5 +197,36 @@ impl SignalData {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn non_word_aligned_payload_round_trips() {
+        // A payload whose length is not a multiple of four is zero-padded to a
+        // word boundary on write; the reported size must round up to match, or
+        // the header undercounts the payload and the stream desyncs on parse.
+        let mut packet = Vrt::new_signal_data_packet();
+        packet
+            .payload_mut()
+            .signal_data_mut()
+            .unwrap()
+            .set_payload(vec![1u8, 2, 3, 4, 5, 6]);
+        packet.update_packet_size();
+        // 6 bytes occupy 2 words (8 bytes with padding).
+        assert_eq!(packet.payload().signal_data().unwrap().size_words(), 2);
+        let parsed = Vrt::try_from(packet.to_bytes().unwrap().as_ref()).unwrap();
+        assert_eq!(&parsed.signal_payload().unwrap()[..6], &[1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn oversized_payload_size_saturates_instead_of_wrapping() {
+        // A payload one word beyond the 16-bit ceiling must report u16::MAX, not
+        // wrap to a small value (65536 as u16 == 0) that undercounts the packet.
+        let data = SignalData::from_owned(vec![0u8; (u16::MAX as usize + 1) * 4]);
+        assert_eq!(data.size_words(), u16::MAX);
     }
 }

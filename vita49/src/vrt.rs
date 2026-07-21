@@ -541,7 +541,11 @@ impl Vrt {
     /// // ... write the packet
     /// ```
     pub fn update_packet_size(&mut self) {
-        let mut packet_size_words = 1;
+        // Accumulate in a wider type: the total can exceed 16 bits before the
+        // final range check, and plain u16 arithmetic would panic in debug and
+        // silently wrap in release, yielding a header that disagrees with the
+        // serialized length.
+        let mut packet_size_words: u32 = 1;
         if self.header.stream_id_included() {
             packet_size_words += 1;
         }
@@ -558,9 +562,14 @@ impl Vrt {
             packet_size_words += 1;
         }
 
-        packet_size_words += self.payload.size_words();
+        packet_size_words += u32::from(self.payload.size_words());
 
-        self.header.set_packet_size(packet_size_words);
+        // The VRT packet size field is 16 bits, so a packet larger than
+        // u16::MAX words cannot be represented (ANSI/VITA-49.2-2017 6.1.1). Such
+        // a packet is malformed; saturate rather than wrap so the size is never
+        // a small bogus value.
+        self.header
+            .set_packet_size(u16::try_from(packet_size_words).unwrap_or(u16::MAX));
     }
 }
 
@@ -587,5 +596,22 @@ mod tests {
             packet.set_trailer(Some(Trailer::default())),
             Err(VitaError::SignalDataOnly)
         ));
+    }
+
+    #[test]
+    fn oversized_packet_saturates_size_instead_of_wrapping() {
+        use crate::prelude::*;
+        // A payload at the 16-bit word ceiling plus the mandatory header words
+        // exceeds u16::MAX. The size field must saturate rather than panic (in
+        // debug) or wrap to a small value (in release).
+        let mut packet = Vrt::new_signal_data_packet();
+        let payload = vec![0u8; (u16::MAX as usize) * 4]; // 65_535 words
+        packet
+            .payload_mut()
+            .signal_data_mut()
+            .unwrap()
+            .set_payload(payload);
+        packet.update_packet_size();
+        assert_eq!(packet.header().packet_size(), u16::MAX);
     }
 }
