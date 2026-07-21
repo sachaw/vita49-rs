@@ -11,6 +11,7 @@
 
 mod ack;
 mod ack_response;
+mod array_of_cifs;
 mod cancellation;
 mod cif0;
 mod cif1;
@@ -46,6 +47,7 @@ mod vrt;
 // Public exports
 pub use crate::ack::{Ack, AckLevel};
 pub use crate::ack_response::AckResponse;
+pub use crate::array_of_cifs::*;
 pub use crate::cancellation::Cancellation;
 pub use crate::cif0::*;
 pub use crate::cif1::*;

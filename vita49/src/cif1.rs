@@ -9,18 +9,17 @@ Fields here are compatible with VITA 49.2 and later.
 use core::fmt;
 
 use crate::{
-    ack::AckLevel, ack_response::AckResponse, cif0::Cif0, cif7::Cif7Opts, gain::Gain,
-    index_list::IndexList, sector_step_scan::SectorStepScan, spectrum::Spectrum,
-    three_d_pointing_vector::ThreeDPointingVectorStruct, Cif0AckFields, Threshold,
+    ack::AckLevel, ack_response::AckResponse, array_of_cifs::ArrayOfCifs, cif0::Cif0,
+    cif7::Cif7Opts, gain::Gain, index_list::IndexList, sector_step_scan::SectorStepScan,
+    spectrum::Spectrum, three_d_pointing_vector::ThreeDPointingVectorStruct, Cif0AckFields,
+    Threshold,
 };
 use deku::prelude::*;
 use fixed::{
     types::extra::{U20, U6, U7},
     FixedI16, FixedI32, FixedU64,
 };
-use vita49_macros::{
-    ack_field, cif_basic, cif_field, cif_fields, cif_radix, cif_radix_masked, todo_cif_field,
-};
+use vita49_macros::{ack_field, cif_basic, cif_field, cif_fields, cif_radix, cif_radix_masked};
 
 /// Base data structure for the CIF1 single-bit indicators
 #[derive(
@@ -49,7 +48,7 @@ impl Cif1 {
     cif_field!(aux_gain, 14);
     cif_field!(aux_bandwidth, 13);
     // Bit 12 is reserved
-    todo_cif_field!(array_of_cifs, 11, 1);
+    cif_field!(array_of_cifs, 11);
     cif_field!(spectrum, 10);
     cif_field!(sector_scan, 9);
     // Bit 8 is reserved
@@ -96,7 +95,7 @@ pub struct Cif1Fields {
     aux_gain: Gain,
     aux_bandwidth: u64,
     // TODO: add basic support
-    array_of_cifs: u32,
+    array_of_cifs: ArrayOfCifs,
     spectrum: Spectrum,
     // TODO: add basic support
     sector_scan: SectorStepScan,
@@ -187,7 +186,7 @@ pub trait Cif1Manipulators {
     cif_basic!(cif1, aux_gain, aux_gain, Gain);
     cif_radix!(cif1, aux_bandwidth, aux_bandwidth_hz, f64, FixedU64::<U20>);
     // TODO: add basic support
-    cif_basic!(cif1, array_of_cifs, array_of_cifs, u32);
+    cif_basic!(cif1, array_of_cifs, array_of_cifs, ArrayOfCifs);
     cif_basic!(cif1, spectrum, spectrum, Spectrum);
     // TODO: add basic support
     cif_basic!(cif1, sector_scan, sector_scan, SectorStepScan);

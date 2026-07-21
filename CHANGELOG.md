@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parsing and construction for the Sector/Step-Scan context field (CIF1 bit 9, §9.6.2):
   scan/step sector records with frequency, gain, threshold and timing subfields,
   including a prologue-TSI/TSF-sized Start Time
+- Parsing and construction for the Array of CIF Fields context field (CIF1 bit 11,
+  §9.13.1): records carrying selected CIF0..CIF3 fields, with a recursion-depth guard
+  against maliciously nested packets
 
 ### Fixed
 - `cif_basic!`-generated setters moved a non-`Copy` field value out of the setter
